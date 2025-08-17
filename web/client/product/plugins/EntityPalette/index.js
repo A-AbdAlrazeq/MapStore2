@@ -195,11 +195,17 @@ function EntityPalette({ open, armedItem, entityFeatures = [], selectedId, dispa
     };
 
     const onDelete = (id) => {
+        dispatch(setSelectedId(id));
         dispatch({ type: 'entitypalette/DELETE_FEATURE', id });
     };
 
     const onMove = (id) => {
-        dispatch(setSelectedId(id));
+        // toggle selection when re-clicking Move on the same item
+        if (selectedId === id) {
+            dispatch(setSelectedId(null)); // clears halo
+        } else {
+            dispatch(setSelectedId(id));
+        }
         dispatch(setMoveTarget(id));
     };
 
@@ -244,12 +250,14 @@ function EntityPalette({ open, armedItem, entityFeatures = [], selectedId, dispa
                 {entityFeatures.length === 0 ? (
                     <div style={{ color: '#777' }}>لا توجد رموز بعد.</div>
                 ) : entityFeatures.map(f => (
-                    <div key={f.id} style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '4px 6px', borderRadius: 4, background: selectedId === f.id ? 'rgba(0,186,255,0.12)' : 'transparent', border: selectedId === f.id ? '1px solid #00baff' : '1px solid transparent' }}>
+                    <div key={f.id}
+                        onClick={() => dispatch(setSelectedId(f.id))}
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '4px 6px', borderRadius: 4, background: selectedId === f.id ? 'rgba(0,186,255,0.12)' : 'transparent', border: selectedId === f.id ? '1px solid #00baff' : '1px solid transparent', cursor: 'pointer' }}>
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: selectedId === f.id ? 700 : 400, color: selectedId === f.id ? '#00baff' : 'inherit' }}>{f.id}</span>
-                        <button className="btn btn-xs btn-default" title="تحريك" onClick={() => onMove(f.id)}>
+                        <button className="btn btn-xs btn-default" title="تحريك" onClick={(e) => { e.stopPropagation(); onMove(f.id); }}>
                             <Glyphicon glyph="move" />
                         </button>
-                        <button className="btn btn-xs btn-danger" title="حذف" onClick={() => onDelete(f.id)}>
+                        <button className="btn btn-xs btn-danger" title="حذف" onClick={(e) => { e.stopPropagation(); onDelete(f.id); }}>
                             <Glyphicon glyph="trash" />
                         </button>
                     </div>
@@ -365,6 +373,8 @@ const addEntityOnMapClickEpic = (action$, { getState = () => {} }) =>
             const updated = { ...existing, features: [ ...otherFeatures, feature ], style: { format: 'geostyler', body: { name: existing?.style?.body?.name || '', rules: moveTargetId ? existing?.style?.body?.rules : [...existing?.style?.body?.rules, newRule] } } };
             return Rx.Observable.from([
                 updateNode(existing.id, 'layers', updated),
+                // re-dispatch selection to refresh highlight to the new geometry
+                setSelectedId(id),
                 setArmedItem(null),
                 setMoveTarget(null)
             ]);
@@ -419,15 +429,62 @@ const importFeaturesEpic = (action$, { getState = () => {} }) =>
             const state = getState();
             const allLayers = (state.layers && (state.layers.flat || state.layers.layers)) || [];
             const existing = allLayers.find(l => l.id === 'entitypalette');
-            const rules = features.map(f => ({ name: '', filter: ['==', 'id', f.id], symbolizers: [{ kind: 'Icon', image: f?.properties?.image, size: 44, opacity: 1 }] }));
-            if (!existing) {
-                return addLayer({ id: 'entitypalette', type: 'vector', name: 'Entity Palette', visibility: true, features, style: { format: 'geostyler', body: { name: '', rules } } });
-            }
+            const rules = (existing?.style?.body?.rules || []).filter(r => r)
+                .filter(r => r.filter && r.filter[0] === '==' && r.filter[1] === 'id')
+                .filter(r => features.find(f => `entity-${Date.now()}`)); // placeholder filter safeguard
             const updated = { ...existing, features, style: { format: 'geostyler', body: { name: existing?.style?.body?.name || '', rules } } };
             return updateNode(existing.id, 'layers', updated);
         });
 
-const epicsDef = { addEntityOnMapClickEpic, placeAtCoordsEpic, deleteFeatureEpic, importFeaturesEpic };
+// --- Map highlight (separate layer) ---
+const HIGHLIGHT_LAYER_ID = 'entitypalette-highlight';
+const buildHighlightStyle = (featureId) => ({
+    format: 'geostyler',
+    body: {
+        name: 'Selection Highlight',
+        rules: [{
+            name: 'selected',
+            filter: ['==', 'id', featureId],
+            symbolizers: [
+                { kind: 'Mark', wellKnownName: 'Circle', color: '#00baff', fillOpacity: 0.15, strokeColor: '#00baff', strokeOpacity: 1, strokeWidth: 3, radius: 28, zIndex: 1000 },
+                { kind: 'Mark', wellKnownName: 'Circle', color: '#ffffff', fillOpacity: 0, strokeColor: '#ffffff', strokeOpacity: 1, strokeWidth: 2, radius: 22, zIndex: 1001 }
+            ]
+        }]
+    }
+});
+
+const highlightSelectionEpic = (action$, { getState = () => {} }) => action$
+    .ofType(SET_SELECTED_ID)
+    .map(({ id }) => {
+        const state = getState();
+        const layers = (state.layers && (state.layers.flat || state.layers.layers)) || [];
+        const entityLayer = layers.find(l => l.id === 'entitypalette');
+        const highlightLayer = layers.find(l => l.id === HIGHLIGHT_LAYER_ID);
+        if (!entityLayer) return { type: 'IGNORE' };
+        const selected = (entityLayer.features || []).find(f => f.id === id || f?.properties?.id === id);
+
+        if (!selected) {
+            // clear highlight
+            if (highlightLayer) {
+                const cleared = { ...highlightLayer, features: [] };
+                return updateNode(highlightLayer.id, 'layers', cleared);
+            }
+            return { type: 'IGNORE' };
+        }
+
+        // mirror geometry with a dedicated id for style filtering
+        const hId = `sel-${selected.id || id}`;
+        const hFeature = { type: 'Feature', id: hId, geometry: selected.geometry, properties: { id: hId } };
+        const style = buildHighlightStyle(hId);
+
+        if (!highlightLayer) {
+            return addLayer({ id: HIGHLIGHT_LAYER_ID, type: 'vector', name: 'Selection', visibility: true, features: [hFeature], style });
+        }
+        const updated = { ...highlightLayer, features: [hFeature], style };
+        return updateNode(highlightLayer.id, 'layers', updated);
+    });
+
+const epicsDef = { addEntityOnMapClickEpic, placeAtCoordsEpic, deleteFeatureEpic, importFeaturesEpic, highlightSelectionEpic };
 
 // Plugin export (MapStore expects a plugin definition object)
 export default {
