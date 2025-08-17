@@ -137,7 +137,7 @@
                   "visibility": false,
                   "singleTile": false,
                   "credits": {
-                    "title": "OSM Simple Light | Rendering <a href=\"https://www.geo-solutions.it/\">GeoSolutions</a> | Data © <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"http://www.openstreetmap.org/copyright\">ODbL</a>"
+                    "title": "OSM Simple Light | Rendering <a href=\"https://www.geo-solutions.it/\">GeoSolutions</a> | Data &#169; <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"http://www.openstreetmap.org/copyright\">ODbL</a>"
                   }
                 },
                 {
@@ -160,7 +160,7 @@
                   "visibility": false,
                   "singleTile": false,
                   "credits": {
-                    "title": "OSM Simple Dark | Rendering <a href=\"https://www.geo-solutions.it/\">GeoSolutions</a> | Data © <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"http://www.openstreetmap.org/copyright\">ODbL</a>"
+                    "title": "OSM Simple Dark | Rendering <a href=\"https://www.geo-solutions.it/\">GeoSolutions</a> | Data &#169; <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"http://www.openstreetmap.org/copyright\">ODbL</a>"
                   }
                 },
                 {
@@ -180,10 +180,10 @@
                     "https://maps6.geosolutionsgroup.com/geoserver/wms"
                   ],
                   "tileSize": 512,
-                  "visibility": true,
+                  "visibility": false,
                   "singleTile": false,
                   "credits": {
-                    "title": "OSM Bright | Rendering <a href=\"https://www.geo-solutions.it/\">GeoSolutions</a> | Data © <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"http://www.openstreetmap.org/copyright\">ODbL</a>"
+                    "title": "OSM Bright | Rendering <a href=\"https://www.geo-solutions.it/\">GeoSolutions</a> | Data &#169; <a href=\"http://www.openstreetmap.org/\">OpenStreetMap</a> contributors, <a href=\"http://www.openstreetmap.org/copyright\">ODbL</a>"
                   }
                 },
                 {
@@ -235,7 +235,7 @@
                   "name": "mapnik",
                   "source": "osm",
                   "group": "background",
-                  "visibility": false
+                  "visibility": true
                 },
                 {
                   "source": "ol",
@@ -438,6 +438,7 @@
       "Notifications",
       "BackgroundSelector",
       "Swipe",
+      { "name": "EntityPalette" },
       {
         "name": "Annotations"
       },

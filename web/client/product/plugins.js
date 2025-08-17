@@ -56,6 +56,7 @@ export const plugins = {
     // ### DYNAMIC PLUGINS ### //
     // product plugins
     AboutPlugin: toModulePlugin('About', () => import(/* webpackChunkName: 'plugins/about' */ './plugins/About')),
+    EntityPalettePlugin: toModulePlugin('EntityPalette', () => import(/* webpackChunkName: 'plugins/entityPalette' */ './plugins/EntityPalette')),
     // framework plugins
     MapTypePlugin: toModulePlugin('MapType', () => import(/* webpackChunkName: 'plugins/mapType' */ './plugins/MapType')),
     AddGroupPlugin: toModulePlugin('AddGroup', () => import(/* webpackChunkName: 'plugins/about' */'../plugins/AddGroup')),
