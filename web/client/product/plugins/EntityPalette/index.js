@@ -336,15 +336,7 @@ function EntityPalette({ open, armedItem, entityFeatures = [], selectedId, dispa
     };
 
     const onMove = (id) => {
-        // enter move mode and highlight the target
         dispatch(setSelectedId(id));
-        // ensure we are not in place mode to avoid conflicts with move
-        dispatch(setArmedItem(null));
-        // ensure no DnD overlay/mouse fallback is active to allow map clicks
-        try { setIsDndActive(false); } catch (_) {}
-        try { setIsMouseDragActive(false); } catch (_) {}
-        try { dragPayloadRef.current = null; } catch (_) {}
-        try { console.log('[EntityPalette] move: armed OFF, overlays cleared, waiting for map click to move id', id); } catch (_) {}
         dispatch(setMoveTarget(id));
     };
 
@@ -468,19 +460,7 @@ function EntityPalette({ open, armedItem, entityFeatures = [], selectedId, dispa
                         onClick={() => dispatch(setSelectedId(f.id))}
                         style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4, padding: '4px 6px', borderRadius: 4, background: selectedId === f.id ? 'rgba(0,186,255,0.12)' : 'transparent', border: selectedId === f.id ? '1px solid #00baff' : '1px solid transparent', cursor: 'pointer' }}>
                         <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: selectedId === f.id ? 700 : 400, color: selectedId === f.id ? '#00baff' : 'inherit' }}>{f.id}</span>
-                        <div className="btn-group" role="group" aria-label="scale">
-                            <button className="btn btn-xs btn-default" title="تصغير" onClick={(e) => { e.stopPropagation(); onSizeChange(f.id, -6); }}>−</button>
-                            <button className="btn btn-xs btn-default" title="تكبير" onClick={(e) => { e.stopPropagation(); onSizeChange(f.id, +6); }}>＋</button>
-                        </div>
-                        <div className="btn-group" role="group" aria-label="rotate">
-                            <button className="btn btn-xs btn-default" title="دوران يسار" onClick={(e) => { e.stopPropagation(); onRotateChange(f.id, -15); }}>
-                                <Glyphicon glyph="repeat" style={{ transform: 'scaleX(-1)' }} />
-                            </button>
-                            <button className="btn btn-xs btn-default" title="دوران يمين" onClick={(e) => { e.stopPropagation(); onRotateChange(f.id, +15); }}>
-                                <Glyphicon glyph="repeat" />
-                            </button>
-                        </div>
-                        <button className="btn btn-xs btn-default" title="تحريك" onClick={(e) => { e.stopPropagation(); onMove(f.id); }}>
+                        <button className="btn btn-xs btn-default" title="تحريك" onClick={() => onMove(f.id)}>
                             <Glyphicon glyph="move" />
                         </button>
                         <button className="btn btn-xs btn-danger" title="حذف" onClick={(e) => { e.stopPropagation(); onDelete(f.id); }}>
@@ -741,8 +721,6 @@ const addEntityOnMapClickEpic = (action$, { getState = () => {} }) =>
             try { console.log('[EntityPalette] applying', moveTargetId ? 'MOVE' : 'PLACE', { id, out: [outLng, outLat], migrated, from: layerCrs, to: targetCrs, hadRule: hasRule, rulesCount: nextRules.length }); } catch (_) {}
             return Rx.Observable.from([
                 updateNode(existing.id, 'layers', updated),
-                // keep selection after move to preserve the halo on the moved icon
-                setSelectedId(id),
                 setArmedItem(null),
                 setMoveTarget(null)
             ]);
@@ -908,53 +886,25 @@ const updateFeatureMetadataEpic = (action$, { getState = () => {} }) =>
         .ofType(UPDATE_FEATURE_METADATA)
         .mergeMap(({ id, name, code, faction, notes }) => {
             const state = getState();
-            const layers = (state.layers && (state.layers.flat || state.layers.layers)) || [];
-            const existing = layers.find(l => l.id === 'entitypalette');
-            if (!existing) return Rx.Observable.empty();
-            // Validate and sanitize metadata
-            const clean = {
-                name: (name || '').trim(),
-                code: (code || '').trim(),
-                faction: (faction || '').trim(),
-                notes: (notes || '').trim()
-            };
-            // Enforce numeric-only for code
-            if (!(clean.code === '' || /^\d*$/.test(clean.code))) {
-                return Rx.Observable.empty();
+            const allLayers = (state.layers && (state.layers.flat || state.layers.layers)) || [];
+            const existing = allLayers.find(l => l.id === 'entitypalette');
+            const rules = features.map(f => ({ name: '', filter: ['==', 'id', f.id], symbolizers: [{ kind: 'Icon', image: f?.properties?.image, size: 44, opacity: 1 }] }));
+            if (!existing) {
+                return addLayer({ id: 'entitypalette', type: 'vector', name: 'Entity Palette', visibility: true, features, style: { format: 'geostyler', body: { name: '', rules } } });
             }
-            const features = (existing.features || []).map(f => f.id === id ? { ...f, properties: { ...(f.properties || {}), name, code, faction, notes } } : f);
-            const updated = { ...existing, features };
-            return Rx.Observable.of(updateNode(existing.id, 'layers', updated));
+            const updated = { ...existing, features, style: { format: 'geostyler', body: { name: existing?.style?.body?.name || '', rules } } };
+            return updateNode(existing.id, 'layers', updated);
         });
 
-// Epic: add/remove halo for selected entity by adjusting style
-const haloForSelectionEpic = (action$, { getState = () => {} }) =>
-    action$
-        .ofType(SET_SELECTED_ID)
-        .mergeMap(({ id }) => {
-            const state = getState();
-            const layers = (state.layers && (state.layers.flat || state.layers.layers)) || [];
-            const existing = layers.find(l => l.id === 'entitypalette');
-            if (!existing) return Rx.Observable.empty();
-            const rules = (existing?.style?.body?.rules || []).map(r => {
-                if (!(Array.isArray(r.filter) && r.filter[0] === '==' && r.filter[1] === 'eid')) return r;
-                const isSelected = r.filter[2] === id && id;
-                const realIcon = (r.symbolizers || []).find(s => s.kind === 'Icon' && s.image !== HALO_IMG);
-                const rest = (r.symbolizers || []).filter(s => {
-                    if (s.kind === 'Icon' && s.image === HALO_IMG) return false; // remove previous halo
-                    if (realIcon && s === realIcon) return false; // will re-add
-                    return s.kind !== 'Mark';
-                });
-                const haloSize = Math.max(12, Math.min(200, (realIcon?.size || 48) + 12));
-                const haloIcon = isSelected ? [{ kind: 'Icon', image: HALO_IMG, size: haloSize, rotate: 0, opacity: 1 }] : [];
-                const rebuilt = [...haloIcon, ...(realIcon ? [realIcon] : []), ...rest];
-                return { ...r, symbolizers: rebuilt };
-            });
-            const updated = { ...existing, style: { format: 'geostyler', body: { name: existing?.style?.body?.name || '', rules } } };
-            return Rx.Observable.of(updateNode(existing.id, 'layers', updated));
-        });
-
-const epicsDef = { addEntityOnMapClickEpic, placeAtCoordsEpic, deleteFeatureEpic, selectEntityOnMapClickEpic, updateIconStyleEpic, updateFeatureMetadataEpic, haloForSelectionEpic };
+const epicsDef = { 
+    addEntityOnMapClickEpic, 
+    placeAtCoordsEpic, 
+    deleteFeatureEpic, 
+    selectEntityOnMapClickEpic,
+    updateIconStyleEpic,
+    updateFeatureMetadataEpic,
+    importFeaturesEpic 
+};
 
 // Plugin export (MapStore expects a plugin definition object)
 export default {
