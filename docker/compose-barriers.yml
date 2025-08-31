@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  postgis:
+    image: postgis/postgis:15-3.4
+    container_name: ms_postgis
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mapstore
+      POSTGRES_USER: mapstore
+      POSTGRES_PASSWORD: mapstore
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      # Auto-initialize schema on first run
+      - ../db/security_barriers.sql:/docker-entrypoint-initdb.d/01_security_barriers.sql:ro
+
+  geoserver:
+    image: kartoza/geoserver:2.23.2
+    container_name: ms_geoserver
+    restart: unless-stopped
+    environment:
+      GEOSERVER_ADMIN_USER: admin
+      GEOSERVER_ADMIN_PASSWORD: geoserver
+      # Increase JVM heap for styling if needed
+      JAVA_OPTS: "-Xms512m -Xmx1024m"
+    ports:
+      - "8080:8080"
+    volumes:
+      - gsdata:/opt/geoserver/data_dir
+      # Optional: mount icons folder into data_dir/styles for simple SLD references
+      - ./barriers/icons:/opt/geoserver/data_dir/styles
+    depends_on:
+      - postgis
+
+volumes:
+  pgdata:
+  gsdata:

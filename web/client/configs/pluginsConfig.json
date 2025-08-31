@@ -92,6 +92,13 @@
       "children": ["StyleEditor"]
     },
     {
+      "name": "EntityPalette",
+      "glyph": "th-large",
+      "mandatory": true,
+      "title": "plugins.EntityPalette.title",
+      "description": "plugins.EntityPalette.description"
+    },
+    {
       "name": "MapFooter",
       "mandatory": true,
       "hidden": true

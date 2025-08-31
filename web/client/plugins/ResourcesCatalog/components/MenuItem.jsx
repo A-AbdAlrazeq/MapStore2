@@ -210,8 +210,13 @@ const MenuItem = ({
         return <li><span /></li>;
     }
 
-    if (type === 'message' && labelId) {
-        return <li><HTML msgId={labelId} /></li>;
+    if (type === 'message') {
+        if (labelId) {
+            return <li><HTML msgId={labelId} /></li>;
+        }
+        if (label) {
+            return <li><span>{label}</span></li>;
+        }
     }
 
     return null;

@@ -20,7 +20,9 @@
       "https://maps2.geosolutionsgroup.com/geoserver/",
       "https://maps3.geosolutionsgroup.com/geoserver/",
       "https://maps4.geosolutionsgroup.com/geoserver/",
-      "https://maps5.geosolutionsgroup.com/geoserver/"
+      "https://maps5.geosolutionsgroup.com/geoserver/",
+      "http://localhost:8080/geoserver",
+      "https://localhost:8443/geoserver"
     ]
   },
   "geoStoreUrl": "rest/geostore/",
@@ -89,13 +91,13 @@
             "isNew": true,
             "autoload": false
           },
-          "selectedService": "gs_stable_csw",
+          "selectedService": "local_geoserver_wms",
           "services": {
             "gs_stable_csw": {
               "url": "https://gs-stable.geo-solutions.it/geoserver/csw",
               "type": "csw",
               "title": "GeoSolutions GeoServer CSW",
-              "autoload": true
+              "autoload": false
             },
             "gs_stable_wms": {
               "url": "https://gs-stable.geo-solutions.it/geoserver/wms",
@@ -107,6 +109,12 @@
               "url": "https://gs-stable.geo-solutions.it/geoserver/gwc/service/wmts",
               "type": "wmts",
               "title": "GeoSolutions GeoServer WMTS",
+              "autoload": false
+            },
+            "local_geoserver_wms": {
+              "url": "/geoserver/wms",
+              "type": "wms",
+              "title": "Local GeoServer WMS",
               "autoload": false
             }
           },
@@ -235,7 +243,7 @@
                   "name": "mapnik",
                   "source": "osm",
                   "group": "background",
-                  "visibility": true
+                  "visibility": false
                 },
                 {
                   "source": "ol",
@@ -243,7 +251,7 @@
                   "title": "Empty Background",
                   "fixed": true,
                   "type": "empty",
-                  "visibility": false
+                  "visibility": true
                 }
               ]
             }

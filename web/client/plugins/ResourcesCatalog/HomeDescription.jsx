@@ -10,9 +10,9 @@ import React from 'react';
 import { createPlugin } from "../../utils/PluginsUtils";
 import HTML from '../../components/I18N/HTML';
 import Text from '../../components/layout/Text';
-import { Jumbotron } from 'react-bootstrap';
+// removed Jumbotron to avoid adding Bootstrap classes
 import PropTypes from 'prop-types';
-import src from '../../product/assets/img/hero.jpg';
+import src from '../../product/assets/img/pmi-banner.jpg';
 
 /**
  * This plugin shows a main description in the homepage
@@ -20,8 +20,8 @@ import src from '../../product/assets/img/hero.jpg';
  * @class
  * @name HomeDescription
  * @prop {string} className custom class name (default `ms-home-description`)
- * @prop {string} backgroundSrc background image source (default `assets/img/hero.jpg`)
- * @prop {string} descriptionFooterMessageId custom description message id (default `home.shortDescription`)
+ * @prop {string} backgroundSrc background image source (default `assets/img/pmi-banner.jpg`)
+ * @prop {string} descriptionFooterMessageId custom description message id (default none)
  * @prop {object} style inline style
  */
 function HomeDescription({
@@ -31,21 +31,31 @@ function HomeDescription({
     descriptionFooterMessageId
 }) {
     return (
-        <Jumbotron
-            className={`${className} ms-secondary-colors _padding-lg _relative`}
+        <div
             style={{
-                ...(backgroundSrc && {
-                    backgroundImage: `url('${backgroundSrc}')`
-                }),
+                padding: 0,
+                margin: 0,
+                width: '100vw',
+                marginLeft: 'calc(50% - 50vw)',
+                marginRight: 'calc(50% - 50vw)',
+                borderRadius: 0,
+                backgroundColor: '#fff',
                 ...style
             }}
         >
+            {backgroundSrc
+                ? <img
+                    src={backgroundSrc}
+                    alt=""
+                    style={{ display: 'block', width: '100%', height: 'auto' }}
+                />
+                : null}
             {descriptionFooterMessageId
                 ? <Text textAlign="center" classNames={['_relative']}>
                     <HTML msgId={descriptionFooterMessageId}/>
                 </Text>
                 : null}
-        </Jumbotron>
+        </div>
     );
 }
 
@@ -58,7 +68,7 @@ HomeDescription.propTypes = {
 
 HomeDescription.defaultProps = {
     backgroundSrc: src,
-    descriptionFooterMessageId: 'home.shortDescription',
+    descriptionFooterMessageId: null,
     className: 'ms-home-description'
 };
 
